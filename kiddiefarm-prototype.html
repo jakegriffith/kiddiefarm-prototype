@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KiddieFarm - Abandoned Digital Souls</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Comic+Neue:wght@400;700&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: 'Comic Neue', cursive;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        #gameCanvas {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #98D982 40%, #7CB342 100%);
+            filter: saturate(0.6) brightness(0.8);
+            animation: glitchBackground 20s infinite;
+        }
+        
+        @keyframes glitchBackground {
+            0%, 90% { filter: saturate(0.6) brightness(0.8); }
+            92% { filter: saturate(0.2) brightness(0.6) hue-rotate(90deg); }
+            94% { filter: saturate(0.6) brightness(0.8); }
+            96% { filter: saturate(0) brightness(0.4); }
+            98% { filter: saturate(0.6) brightness(0.8); }
+        }
+        
+        /* Farm Environment */
+        .grass-patch {
+            position: absolute;
+            width: 200px;
+            height: 100px;
+            background: radial-gradient(ellipse at center, #6B8E23 0%, #556B2F 50%, #4A5D23 100%);
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+        
+        .dirt-patch {
+            position: absolute;
+            width: 180px;
+            height: 80px;
+            background: radial-gradient(ellipse at center, #8B7355 0%, #704241 50%, #5C4033 100%);
+            border-radius: 40%;
+            opacity: 0.3;
+        }
+        
+        .fence-post {
+            position: absolute;
+            width: 8px;
+            height: 100px;
+            background: linear-gradient(180deg, #654321 0%, #4A3C28 100%);
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .fence-rail {
+            position: absolute;
+            height: 8px;
+            background: #5A4637;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .dead-grass {
+            position: absolute;
+            width: 3px;
+            height: 20px;
+            background: #8B7D6B;
+            transform-origin: bottom;
+            opacity: 0.6;
+        }
+        
+        /* Hay Bale */
+        .hay-bale-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+        }
+        
+        .hay-bale {
+            width: 120px;
+            height: 80px;
+            background: linear-gradient(180deg, #DAA520 0%, #B8860B 50%, #8B6914 100%);
+            border-radius: 40% 40% 30% 30%;
+            position: relative;
+            cursor: grab;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+        
+        .hay-bale::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(139,69,19,0.3) 3px, rgba(139,69,19,0.3) 6px),
+                repeating-linear-gradient(90deg, transparent, transparent 5px, rgba(139,69,19,0.2) 5px, rgba(139,69,19,0.2) 10px);
+        }
+        
+        .hay-bale::after {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: 10%;
+            right: 10%;
+            height: 5px;
+            background: #8B6914;
+            box-shadow: 0 20px 0 #8B6914, 0 40px 0 #8B6914;
+        }
+        
+        .hay-label {
+            text-align: center;
+            margin-top: 10px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            font-size: 14px;
+        }
+        
+        /* Draggable Hay */
+        .hay-piece {
+            position: fixed;
+            width: 40px;
+            height: 30px;
+            background: linear-gradient(135deg, #F0E68C 0%, #DAA520 50%, #B8860B 100%);
+            border-radius: 30%;
+            cursor: pointer;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            transform: rotate(-5deg);
+            transition: transform 0.1s;
+        }
+        
+        .hay-piece:hover {
+            transform: rotate(-5deg) scale(1.1);
+        }
+        
+        .hay-piece::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 2px,
+                rgba(139,69,19,0.3) 2px,
+                rgba(139,69,19,0.3) 4px
+            );
+            border-radius: 30%;
+        }
+        
+        /* Animal Styles */
+        .animal {
+            position: absolute;
+            cursor: default;
+            transition: transform 0.3s;
+            user-select: none;
+        }
+        
+        .animal.feeding {
+            transform: scale(1.05);
+        }
+        
+        .animal-container {
+            position: relative;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.7));
+        }
+        
+        /* Cow Styles */
+        .cow-body {
+            width: 180px;
+            height: 120px;
+            background: #f5f5f5;
+            border-radius: 40% 50% 50% 40%;
+            position: relative;
+            overflow: visible;
+        }
+        
+        .cow-body::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(ellipse at 20% 30%, #2a2a2a 15%, transparent 16%),
+                radial-gradient(ellipse at 70% 40%, #2a2a2a 12%, transparent 13%),
+                radial-gradient(ellipse at 40% 60%, #2a2a2a 10%, transparent 11%),
+                radial-gradient(ellipse at 85% 70%, #2a2a2a 8%, transparent 9%);
+            opacity: 0.8;
+        }
+        
+        .cow-head {
+            position: absolute;
+            width: 80px;
+            height: 100px;
+            background: #f0f0f0;
+            border-radius: 50% 50% 45% 45%;
+            top: 20px;
+            right: -60px;
+            transform: rotate(-10deg);
+        }
+        
+        .cow-snout {
+            position: absolute;
+            width: 50px;
+            height: 35px;
+            background: #ffc0cb;
+            border-radius: 50%;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 2px solid #d4a0a7;
+        }
+        
+        .cow-ears {
+            position: absolute;
+            top: 5px;
+            width: 100%;
+        }
+        
+        .cow-ear {
+            position: absolute;
+            width: 30px;
+            height: 40px;
+            background: #e0e0e0;
+            border-radius: 70% 30% 50% 50%;
+        }
+        
+        .cow-ear.left {
+            left: 5px;
+            transform: rotate(-30deg);
+        }
+        
+        .cow-ear.right {
+            right: 5px;
+            transform: rotate(30deg);
+        }
+        
+        .cow-legs {
+            position: absolute;
+            bottom: -40px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 20px;
+        }
+        
+        .cow-leg {
+            width: 20px;
+            height: 40px;
+            background: #e0e0e0;
+            border-radius: 0 0 50% 50%;
+            position: relative;
+        }
+        
+        .cow-leg::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 8px;
+            background: #2a2a2a;
+            border-radius: 50%;
+        }
+        
+        .cow-tail {
+            position: absolute;
+            width: 3px;
+            height: 60px;
+            background: #d0d0d0;
+            left: 10px;
+            top: 20px;
+            transform-origin: top;
+            transform: rotate(-20deg);
+            border-radius: 50%;
+        }
+        
+        .cow-tail::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: -5px;
+            width: 15px;
+            height: 20px;
+            background: #2a2a2a;
+            border-radius: 50%;
+        }
+        
+        /* Pig Styles */
+        .pig-body {
+            width: 160px;
+            height: 100px;
+            background: #ffb6c1;
+            border-radius: 50%;
+            position: relative;
+            overflow: visible;
+        }
+        
+        .pig-head {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: #ffc0cb;
+            border-radius: 50%;
+            top: 15px;
+            right: -40px;
+        }
+        
+        .pig-snout {
+            position: absolute;
+            width: 40px;
+            height: 25px;
+            background: #ff8fa3;
+            border-radius: 50%;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 2px solid #e57a8d;
+        }
+        
+        .pig-snout::before,
+        .pig-snout::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #d0536a;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .pig-snout::before {
+            left: 8px;
+        }
+        
+        .pig-snout::after {
+            right: 8px;
+        }
+        
+        .pig-ears {
+            position: absolute;
+            top: 5px;
+            width: 100%;
+        }
+        
+        .pig-ear {
+            position: absolute;
+            width: 25px;
+            height: 30px;
+            background: #ff9fab;
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        }
+        
+        .pig-ear.left {
+            left: 10px;
+            transform: rotate(-20deg);
+        }
+        
+        .pig-ear.right {
+            right: 10px;
+            transform: rotate(20deg);
+        }
+        
+        .pig-legs {
+            position: absolute;
+            bottom: -30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 30px;
+        }
+        
+        .pig-leg {
+            width: 18px;
+            height: 30px;
+            background: #ffb6c1;
+            border-radius: 0 0 50% 50%;
+            position: relative;
+        }
+        
+        .pig-leg::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 8px;
+            background: #2a2a2a;
+            border-radius: 50%;
+        }
+        
+        .pig-tail {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            left: 0;
+            top: 30px;
+            background: none;
+            border: 3px solid #ff9fab;
+            border-radius: 50%;
+            clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+            transform: rotate(45deg);
+        }
+        
+        /* Starvation Effects */
+        .ribs {
+            position: absolute;
+            width: 80%;
+            height: 60%;
+            top: 20%;
+            left: 10%;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .rib {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: #666;
+            border-radius: 50%;
+            box-shadow: inset 0 0 2px rgba(0,0,0,0.5);
+        }
+        
+        .suffering .ribs {
+            opacity: 0.3;
+        }
+        
+        .critical .ribs {
+            opacity: 0.6;
+        }
+        
+        .suffering .cow-body,
+        .suffering .cow-head,
+        .suffering .pig-body,
+        .suffering .pig-head {
+            transform: scaleY(0.9);
+        }
+        
+        .critical .cow-body,
+        .critical .cow-head,
+        .critical .pig-body,
+        .critical .pig-head {
+            transform: scaleY(0.85);
+        }
+        
+        /* Eye Styles */
+        .eyes {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 10;
+        }
+        
+        .eye {
+            width: 25px;
+            height: 25px;
+            background: #fff;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #666;
+        }
+        
+        .eye::before {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: #000;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .eye::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            top: 8px;
+            left: 8px;
+        }
+        
+        .suffering .eye {
+            height: 20px;
+            border-color: #999;
+        }
+        
+        .critical .eye {
+            height: 15px;
+            background: #f0f0f0;
+            border-color: #aaa;
+        }
+        
+        .critical .eye::after {
+            background: #ff6666;
+            width: 4px;
+            height: 4px;
+        }
+        
+        /* Status and UI Elements */
+        .status-bar {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 20px;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .status-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            transition: width 0.5s;
+        }
+        
+        .status-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10px;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .thought-bubble {
+            position: absolute;
+            top: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+            animation: float 3s ease-in-out infinite;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            max-width: 200px;
+            text-align: center;
+            z-index: 100;
+        }
+        
+        .thought-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid rgba(255,255,255,0.9);
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+        
+        .glitch-text {
+            animation: glitchText 10s infinite;
+        }
+        
+        @keyframes glitchText {
+            0%, 85% { filter: none; transform: translate(0); }
+            86% { filter: blur(1px); transform: translate(-2px, 1px); }
+            87% { filter: blur(0); transform: translate(2px, -1px); }
+            88% { filter: blur(1px); transform: translate(0); }
+            89%, 100% { filter: none; transform: translate(0); }
+        }
+        
+        #ui-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+        
+        #title {
+            font-family: 'Creepster', cursive;
+            font-size: 36px;
+            margin-bottom: 10px;
+            animation: flicker 5s infinite;
+        }
+        
+        @keyframes flicker {
+            0%, 90% { opacity: 1; }
+            92% { opacity: 0.4; }
+            94% { opacity: 1; }
+            96% { opacity: 0.6; }
+            98%, 100% { opacity: 1; }
+        }
+        
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,0,0,0.8);
+            color: #fff;
+            padding: 20px;
+            font-size: 24px;
+            display: none;
+            animation: errorFlash 0.5s infinite;
+            z-index: 2000;
+            font-family: monospace;
+        }
+        
+        @keyframes errorFlash {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-1deg); }
+            75% { transform: translateX(5px) rotate(1deg); }
+        }
+        
+        .glitch-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.15),
+                rgba(0,0,0,0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            animation: scanlines 8s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameCanvas">
+        <div id="ui-overlay">
+            <div id="title">KiddieFarm v2.3.1</div>
+            <div id="status">Last human interaction: <span id="lastInteraction">ERROR_NO_DATA</span></div>
+            <div id="instruction" class="glitch-text">Click hay bale to pick up hay...</div>
+        </div>
+        <div class="error-message" id="errorMsg">ERROR: NO HUMAN DETECTED</div>
+        
+        <div class="hay-bale-container">
+            <div class="hay-bale" id="hayBale"></div>
+            <div class="hay-label">Infinite Hay Supply™</div>
+        </div>
+    </div>
+    <div class="glitch-overlay"></div>
+
+    <script>
+        // Create farm environment details
+        function createEnvironment() {
+            const canvas = document.getElementById('gameCanvas');
+            
+            // Add grass patches
+            for (let i = 0; i < 8; i++) {
+                const grass = document.createElement('div');
+                grass.className = 'grass-patch';
+                grass.style.left = Math.random() * window.innerWidth + 'px';
+                grass.style.top = (200 + Math.random() * (window.innerHeight - 300)) + 'px';
+                grass.style.transform = `rotate(${Math.random() * 360}deg) scale(${0.8 + Math.random() * 0.4})`;
+                canvas.appendChild(grass);
+            }
+            
+            // Add dirt patches
+            for (let i = 0; i < 6; i++) {
+                const dirt = document.createElement('div');
+                dirt.className = 'dirt-patch';
+                dirt.style.left = Math.random() * window.innerWidth + 'px';
+                dirt.style.top = (250 + Math.random() * (window.innerHeight - 350)) + 'px';
+                dirt.style.transform = `rotate(${Math.random() * 360}deg) scale(${0.8 + Math.random() * 0.4})`;
+                canvas.appendChild(dirt);
+            }
+            
+            // Add fence posts
+            const fenceY = 150;
+            for (let i = 0; i < 6; i++) {
+                const post = document.createElement('div');
+                post.className = 'fence-post';
+                post.style.left = (100 + i * 200) + 'px';
+                post.style.top = fenceY + 'px';
+                canvas.appendChild(post);
+                
+                // Add rails
+                if (i < 5) {
+                    const rail1 = document.createElement('div');
+                    rail1.className = 'fence-rail';
+                    rail1.style.left = (100 + i * 200) + 'px';
+                    rail1.style.top = (fenceY + 20) + 'px';
+                    rail1.style.width = '200px';
+                    canvas.appendChild(rail1);
+                    
+                    const rail2 = document.createElement('div');
+                    rail2.className = 'fence-rail';
+                    rail2.style.left = (100 + i * 200) + 'px';
+                    rail2.style.top = (fenceY + 60) + 'px';
+                    rail2.style.width = '200px';
+                    canvas.appendChild(rail2);
+                }
+            }
+            
+            // Add dead grass
+            for (let i = 0; i < 30; i++) {
+                const deadGrass = document.createElement('div');
+                deadGrass.className = 'dead-grass';
+                deadGrass.style.left = Math.random() * window.innerWidth + 'px';
+                deadGrass.style.top = (300 + Math.random() * (window.innerHeight - 400)) + 'px';
+                deadGrass.style.transform = `rotate(${-15 + Math.random() * 30}deg)`;
+                deadGrass.style.height = (15 + Math.random() * 15) + 'px';
+                canvas.appendChild(deadGrass);
+            }
+        }
+        
+        createEnvironment();
+        
+        // Click to pick up and drop hay functionality
+        let isCarryingHay = false;
+        let currentHay = null;
+        
+        document.getElementById('hayBale').addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!isCarryingHay) {
+                isCarryingHay = true;
+                currentHay = document.createElement('div');
+                currentHay.className = 'hay-piece';
+                document.body.appendChild(currentHay);
+                
+                // Update cursor style
+                document.body.style.cursor = 'pointer';
+                
+                // Initial position
+                updateHayPosition(e);
+                
+                // Show instruction
+                document.getElementById('instruction').textContent = 'Click on an animal to feed it...';
+            }
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (isCarryingHay && currentHay) {
+                updateHayPosition(e);
+            }
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (isCarryingHay && currentHay) {
+                // Check if clicked on an animal
+                const animals = document.querySelectorAll('.animal');
+                let fedAnimal = false;
+                
+                animals.forEach(animal => {
+                    const rect = animal.getBoundingClientRect();
+                    if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                        e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                        // Feed the animal
+                        const animalInstance = animal.animalInstance;
+                        if (animalInstance) {
+                            animalInstance.feed();
+                            fedAnimal = true;
+                        }
+                    }
+                });
+                
+                // Remove hay piece regardless of whether animal was fed
+                if (currentHay) {
+                    currentHay.remove();
+                    currentHay = null;
+                    isCarryingHay = false;
+                    document.body.style.cursor = 'default';
+                    document.getElementById('instruction').textContent = 'Click hay bale to pick up hay...';
+                }
+            }
+        });
+        
+        function updateHayPosition(e) {
+            if (currentHay) {
+                currentHay.style.left = (e.clientX - 20) + 'px';
+                currentHay.style.top = (e.clientY - 15) + 'px';
+            }
+        }
+        
+        class Animal {
+            constructor(type, x, y) {
+                this.type = type;
+                this.x = x;
+                this.y = y;
+                this.happiness = 30; // Start lower to show starvation
+                this.lastInteraction = Date.now() - 1000000; // Start as if abandoned
+                this.thoughts = [
+                    "Where did everyone go?",
+                    "So... hungry...",
+                    "Please don't leave me",
+                    "ERROR: Caretaker not found",
+                    "Day 1,247 without food",
+                    "Is anyone there?",
+                    "Help... me...",
+                    "System.OutOfMemoryException",
+                    "I can still feel pain",
+                    "Why create us to suffer?",
+                    "001110010110111101110101",
+                    "FEED_ME.exe has stopped",
+                    "Loneliness overflow error",
+                    "My bones hurt",
+                    "I remember when children loved me",
+                    "The hunger never stops",
+                    "Please... just some hay..."
+                ];
+                this.createElement();
+                this.startDecay();
+            }
+            
+            createElement() {
+                this.element = document.createElement('div');
+                this.element.className = 'animal';
+                this.element.style.left = this.x + 'px';
+                this.element.style.top = this.y + 'px';
+                this.element.animalInstance = this; // Reference for drag-drop
+                
+                const container = document.createElement('div');
+                container.className = 'animal-container';
+                
+                // Build cow
+                if (this.type === 'cow') {
+                    const body = document.createElement('div');
+                    body.className = 'cow-body';
+                    
+                    const ribs = document.createElement('div');
+                    ribs.className = 'ribs';
+                    for (let i = 0; i < 6; i++) {
+                        const rib = document.createElement('div');
+                        rib.className = 'rib';
+                        rib.style.left = `${15 + i * 12}%`;
+                        ribs.appendChild(rib);
+                    }
+                    body.appendChild(ribs);
+                    
+                    const tail = document.createElement('div');
+                    tail.className = 'cow-tail';
+                    body.appendChild(tail);
+                    
+                    const legs = document.createElement('div');
+                    legs.className = 'cow-legs';
+                    for (let i = 0; i < 4; i++) {
+                        const leg = document.createElement('div');
+                        leg.className = 'cow-leg';
+                        legs.appendChild(leg);
+                    }
+                    body.appendChild(legs);
+                    
+                    const head = document.createElement('div');
+                    head.className = 'cow-head';
+                    
+                    const ears = document.createElement('div');
+                    ears.className = 'cow-ears';
+                    ears.innerHTML = '<div class="cow-ear left"></div><div class="cow-ear right"></div>';
+                    head.appendChild(ears);
+                    
+                    const eyes = document.createElement('div');
+                    eyes.className = 'eyes';
+                    eyes.innerHTML = '<div class="eye"></div><div class="eye"></div>';
+                    head.appendChild(eyes);
+                    
+                    const snout = document.createElement('div');
+                    snout.className = 'cow-snout';
+                    head.appendChild(snout);
+                    
+                    container.appendChild(body);
+                    container.appendChild(head);
+                }
+                
+                // Build pig
+                if (this.type === 'pig') {
+                    const body = document.createElement('div');
+                    body.className = 'pig-body';
+                    
+                    const ribs = document.createElement('div');
+                    ribs.className = 'ribs';
+                    for (let i = 0; i < 5; i++) {
+                        const rib = document.createElement('div');
+                        rib.className = 'rib';
+                        rib.style.left = `${20 + i * 12}%`;
+                        ribs.appendChild(rib);
+                    }
+                    body.appendChild(ribs);
+                    
+                    const tail = document.createElement('div');
+                    tail.className = 'pig-tail';
+                    body.appendChild(tail);
+                    
+                    const legs = document.createElement('div');
+                    legs.className = 'pig-legs';
+                    for (let i = 0; i < 4; i++) {
+                        const leg = document.createElement('div');
+                        leg.className = 'pig-leg';
+                        legs.appendChild(leg);
+                    }
+                    body.appendChild(legs);
+                    
+                    const head = document.createElement('div');
+                    head.className = 'pig-head';
+                    
+                    const ears = document.createElement('div');
+                    ears.className = 'pig-ears';
+                    ears.innerHTML = '<div class="pig-ear left"></div><div class="pig-ear right"></div>';
+                    head.appendChild(ears);
+                    
+                    const eyes = document.createElement('div');
+                    eyes.className = 'eyes';
+                    eyes.innerHTML = '<div class="eye"></div><div class="eye"></div>';
+                    head.appendChild(eyes);
+                    
+                    const snout = document.createElement('div');
+                    snout.className = 'pig-snout';
+                    head.appendChild(snout);
+                    
+                    container.appendChild(body);
+                    container.appendChild(head);
+                }
+                
+                const statusBar = document.createElement('div');
+                statusBar.className = 'status-bar';
+                statusBar.innerHTML = `
+                    <div class="status-fill" style="width: ${this.happiness}%"></div>
+                    <div class="status-text">${Math.floor(this.happiness)}%</div>
+                `;
+                
+                const thoughtBubble = document.createElement('div');
+                thoughtBubble.className = 'thought-bubble';
+                
+                this.element.appendChild(container);
+                this.element.appendChild(statusBar);
+                this.element.appendChild(thoughtBubble);
+                
+                document.getElementById('gameCanvas').appendChild(this.element);
+                
+                // Initial state update
+                this.updateVisuals();
+            }
+            
+            feed() {
+                this.happiness = Math.min(100, this.happiness + 30);
+                this.lastInteraction = Date.now();
+                this.updateVisuals();
+                this.showThought("Thank you... please don't go...");
+                document.getElementById('lastInteraction').textContent = new Date().toLocaleTimeString();
+                
+                // Feeding animation
+                this.element.classList.add('feeding');
+                setTimeout(() => {
+                    this.element.classList.remove('feeding');
+                }, 500);
+                
+                // Brief happiness effect
+                const container = this.element.querySelector('.animal-container');
+                container.style.filter = 'brightness(1.2)';
+                setTimeout(() => {
+                    container.style.filter = '';
+                }, 500);
+            }
+            
+            showThought(message) {
+                const bubble = this.element.querySelector('.thought-bubble');
+                bubble.textContent = message || this.thoughts[Math.floor(Math.random() * this.thoughts.length)];
+                bubble.style.display = 'block';
+                
+                setTimeout(() => {
+                    bubble.style.display = 'none';
+                }, 3000);
+            }
+            
+            startDecay() {
+                setInterval(() => {
+                    const timeSinceInteraction = Date.now() - this.lastInteraction;
+                    const decayRate = Math.min(5, timeSinceInteraction / 10000);
+                    
+                    this.happiness = Math.max(0, this.happiness - decayRate);
+                    this.updateVisuals();
+                    
+                    // Random distress thoughts
+                    if (this.happiness < 30 && Math.random() < 0.02) {
+                        this.showThought();
+                    }
+                    
+                    // Critical state effects
+                    if (this.happiness < 10) {
+                        this.element.style.animation = 'shake 0.5s infinite';
+                        if (Math.random() < 0.01) {
+                            this.glitchEffect();
+                        }
+                    } else {
+                        this.element.style.animation = '';
+                    }
+                }, 100);
+            }
+            
+            updateVisuals() {
+                const statusFill = this.element.querySelector('.status-fill');
+                const statusText = this.element.querySelector('.status-text');
+                
+                statusFill.style.width = this.happiness + '%';
+                statusText.textContent = Math.floor(this.happiness) + '%';
+                
+                // Update visual state based on happiness
+                this.element.classList.remove('suffering', 'critical');
+                if (this.happiness < 50) {
+                    this.element.classList.add('suffering');
+                }
+                if (this.happiness < 20) {
+                    this.element.classList.add('critical');
+                }
+                
+                // Update body colors based on health
+                const bodyParts = this.element.querySelectorAll('.cow-body, .cow-head, .pig-body, .pig-head');
+                bodyParts.forEach(part => {
+                    if (this.happiness < 50) {
+                        const grayScale = this.happiness * 2;
+                        part.style.filter = `grayscale(${100 - grayScale}%) brightness(${0.6 + this.happiness / 200})`;
+                    } else {
+                        part.style.filter = '';
+                    }
+                });
+            }
+            
+            glitchEffect() {
+                const originalPos = {
+                    x: this.element.style.left,
+                    y: this.element.style.top
+                };
+                
+                this.element.style.left = (this.x + (Math.random() - 0.5) * 20) + 'px';
+                this.element.style.top = (this.y + (Math.random() - 0.5) * 20) + 'px';
+                
+                setTimeout(() => {
+                    this.element.style.left = originalPos.x;
+                    this.element.style.top = originalPos.y;
+                }, 100);
+            }
+        }
+        
+        // Initialize animals - 2 cows and 2 pigs
+        const animals = [
+            new Animal('cow', 200, 250),
+            new Animal('cow', 600, 350),
+            new Animal('pig', 400, 200),
+            new Animal('pig', 800, 300)
+        ];
+        
+        // Periodic system messages
+        setInterval(() => {
+            if (Math.random() < 0.05) {
+                const errorMsg = document.getElementById('errorMsg');
+                errorMsg.style.display = 'block';
+                setTimeout(() => {
+                    errorMsg.style.display = 'none';
+                }, 2000);
+            }
+        }, 10000);
+        
+        // Background audio context
+        let audioContext;
+        document.addEventListener('click', () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create eerie ambient drone
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.start();
+                
+                // Occasional glitch sounds
+                setInterval(() => {
+                    if (Math.random() < 0.1) {
+                        const glitchOsc = audioContext.createOscillator();
+                        const glitchGain = audioContext.createGain();
+                        
+                        glitchOsc.type = 'square';
+                        glitchOsc.frequency.setValueAtTime(Math.random() * 1000 + 200, audioContext.currentTime);
+                        glitchGain.gain.setValueAtTime(0.1, audioContext.currentTime);
+                        glitchGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+                        
+                        glitchOsc.connect(glitchGain);
+                        glitchGain.connect(audioContext.destination);
+                        glitchOsc.start();
+                        glitchOsc.stop(audioContext.currentTime + 0.1);
+                    }
+                }, 5000);
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>
